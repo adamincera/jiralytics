@@ -8,5 +8,6 @@ pom.xml.asc
 Makefile
 *.c
 *.o
+*.swp
 /.lein-*
 /.nrepl-port

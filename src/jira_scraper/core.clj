@@ -143,7 +143,7 @@
 (defn oldest-unresolved
   "finds oldest unresolved issue"
   [issues]
-  (in-days (apply max (vals (elapsed-time (unresolved issues)))))
+  (first (filter issues #(= (in-days (apply max (vals (elapsed-time (unresolved issues))))) (elapsed-time (second %)))))
   )
 
 (defn recursive-map
@@ -166,14 +166,24 @@
    )
   )
 
+(defn unresolved-hist
+  "creates a histogram displaying the ages of unresolved tickets"
+  [issues]
+  (incanter/view (charts/histogram (map in-days (vals (elapsed-time (map-dates (unresolved issues)))))))
+  )
+
 (defn id-list
   "creates a list of all the id's from a collection of issues"
   [issues]
   (map #(:id %) issues)
   )
 
+(defn avg-resolution-time
+  "finds average time taken to resolve an issue"
+  [issues]
+  (int (stats/mean (map in-days (vals (elapsed-time (map-dates (resolved issues))))))))
+    
 (defn gen-filter
   "filters results according to one parameteri. params is a vector containing the 'path' to the parameter in question"
   [issues term params]
-  ;    (println (vec (rest params)))
   (vec (filter #(= term (recursive-map % (first params) (vec (rest params)))) issues)))
