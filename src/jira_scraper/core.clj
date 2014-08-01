@@ -96,8 +96,8 @@
   "takes a vector of two times and returns the elapsed time" 
   [[x y]]
   (if (nil? y)
-    (t/in-minutes (t/interval (f/parse formatter x) (t/now)))
-    (t/in-minutes (t/interval (f/parse formatter x) (f/parse formatter y)))
+    (in-days (t/in-minutes (t/interval (f/parse formatter x) (t/now))))
+    (in-days (t/in-minutes (t/interval (f/parse formatter x) (f/parse formatter y))))
     )
   )
 
@@ -129,21 +129,52 @@
   ) 
 
 
-(defn unresolved
-  "returns a mapping of all the unresolved issues"
-  [issues]
-  (filter #(nil? (:resolutiondate (:fields %))) issues)
+(defn resolved?
+  "returns true if an issue has been resolved and false if it has not"
+  [issue]
+  (not (nil? (:resolutiondate (:fields issue))))
   )
 
-(defn resolved
+(defn all-unresolved
+  "returns a mapping of all the unresolved issues"
+  [issues]
+  (filter #(not (resolved? %)) issues)
+  )
+
+(defn all-resolved
   "returns a map of all the resolved issues"
   [issues]
-  (filter #(not (nil? (:resolutiondate (:fields %)))) issues))
+  (filter #(resolved? %) issues))
+
+(defn assoc-resolved
+  "adds a param :resolved to a vector of issues"
+  [issues]
+  (map #(assoc % :resolved (resolved? %)) issues)
+ )
+
+(defn assoc-age
+  "associates a new param :age with each issue in the vector issues"
+  [issues]
+  (map #(assoc % :age (in-days (vec-elapse [((% :fields) :created) ((% :fields) :resolutiondate)]))) issues)
+  )
+
+(defn oldest
+  "finds oldest issue, resolved or unresolved"
+  [issues]
+  (apply max (vals (elapsed-time (map-dates issues))))
+)
+
+(defn count-age
+  "finds the number of issues of a given age"
+  [issues age]
+  (count (filter #(= age (% :age)) issues))
+  
+  )
 
 (defn oldest-unresolved
   "finds oldest unresolved issue"
   [issues]
-  (first (filter issues #(= (in-days (apply max (vals (elapsed-time (unresolved issues))))) (elapsed-time (second %)))))
+  (first (filter issues #(= (in-days (apply max (vals (elapsed-time (all-unresolved issues))))) (elapsed-time (second %)))))
   )
 
 (defn recursive-map
@@ -169,8 +200,15 @@
 (defn unresolved-hist
   "creates a histogram displaying the ages of unresolved tickets"
   [issues]
-  (incanter/view (charts/histogram (map in-days (vals (elapsed-time (map-dates (unresolved issues)))))))
+  (incanter/view (charts/histogram (map in-days (vals (elapsed-time (map-dates (all-unresolved issues)))))))
   )
+
+(comment 
+(def resolved-unresolved-hist
+  "produces a line chart comparing durations of resolved and unresolved issues"
+  [issues]
+  (incanter/view (charts/line-chart (
+)))))
 
 (defn id-list
   "creates a list of all the id's from a collection of issues"
@@ -178,12 +216,35 @@
   (map #(:id %) issues)
   )
 
-(defn avg-resolution-time
-  "finds average time taken to resolve an issue"
+(defn avg-age
+  "finds average age of issues in a set"
   [issues]
-  (int (stats/mean (map in-days (vals (elapsed-time (map-dates (resolved issues))))))))
+  (int (stats/mean (map in-days (vals (elapsed-time (map-dates issues)))))))
     
 (defn gen-filter
   "filters results according to one parameteri. params is a vector containing the 'path' to the parameter in question"
   [issues term params]
   (vec (filter #(= term (recursive-map % (first params) (vec (rest params)))) issues)))
+
+(defn event-horizon
+  "determines the age after which an issue will likely go unresolved. default confidene level is 95%"
+  ([issues]
+   (event-horizon 0.95)
+   )
+  ([issues alpha]
+   (+ 
+;     (avg-age (resolved issues)) 
+     (stats/mean issues)
+      (/ 
+       (* 
+         (stats/quantile-normal alpha) 
+         (stats/sd issues
+;           (vals (elapsed-time (map-dates (all-resolved issues))))
+                   )
+         ) 
+       (Math/sqrt (count issues))
+       )
+     )
+   )
+  )
+

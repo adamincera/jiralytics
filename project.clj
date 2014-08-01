@@ -4,4 +4,5 @@
                  [clj-http "0.9.2"]
                  [clj-time "0.7.0"]
                  [org.clojure/tools.trace "0.7.5"]
-                 [incanter "1.2.3-SNAPSHOT"]])
+                 [incanter "1.2.3-SNAPSHOT"]
+                 [ring/ring "1.1.6"]])
