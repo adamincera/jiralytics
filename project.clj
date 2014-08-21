@@ -5,4 +5,8 @@
                  [clj-time "0.7.0"]
                  [org.clojure/tools.trace "0.7.5"]
                  [incanter "1.2.3-SNAPSHOT"]
-                 [ring/ring "1.1.6"]])
+                 [ring/ring "1.1.6"]
+                 [clout "1.2.0"]
+                 [ring-mock "0.1.5"]]
+  :profiles {:dev {:dependencies [[midje "1.5.0"]]}}
+  )
