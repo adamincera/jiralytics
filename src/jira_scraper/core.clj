@@ -8,13 +8,16 @@
             [incanter.stats :as stats]
             [incanter.charts :as charts]
             [clojure.string :as string]
+            [compojure.core :refer :all]
+            [compojure.handler :as handler]
+            [clojure.string :as string]
+            [cheshire.core :refer :all]
             ))
 
 (def jira-url (str "jira.gilt.com"))
 
 (def formatter (f/formatters :date-time))
 (def simple-formatter (f/formatters :date))
-
 
 
 (defn get-project
@@ -56,9 +59,11 @@
                                                                        :as :json
                                                                        }) :body) :issues)
         (catch Exception e (str "ruh roh: " ((.getMessage e) :status))))
+   
    )
-
   )
+
+  
 
 (defn in-days
   "gives elapsed time in days, rounded down"
@@ -325,7 +330,7 @@
      (if (empty? (rest x))
        (priority issues (first x))
        (distinct (concat (priority issues (first x)) (priority issues (rest x)))))
-       (vec (gen-filter issues (string/capitalize x) [:fields :priority :name]))))
+     (vec (gen-filter issues (string/capitalize x) [:fields :priority :name]))))
   ([issues x & more]
    (distinct (concat (priority issues x) (priority issues more))))
   )
@@ -333,4 +338,6 @@
 (defn user
   "finds all issues assigned to a given user"
   [issues user]
-  (gen-filter issues user (if (= "unassigned" user) [:fields :assignee] [:fields :assignee :name])))
+  (gen-filter issues user (if (= "unassigned" user) [:fields :assignee] [:fields :assignee :name]))
+  )
+
