@@ -7,6 +7,7 @@
             [jira-scraper.core :refer :all]
             [clojure.core.cache :refer :all]
             ))
+
 (defn vec-contains? [v x] (boolean (some #(= x %) v)))
 
 (def username (:username (load-string (slurp "./credentials"))))
@@ -16,9 +17,9 @@
 (defn fetch 
   "now with cache!"
   [project]
-;  (def cache (ttl-cache-factory 
-  (get-project project "aincera" "DummyPassword"))
-;  3600000)))
+  ;(def cache (ttl-cache-factory 
+  (get-project project username password))
+;3600000)))
 
 (defn vec-string
   "takes a vector and concatenates all its elements into a string"
@@ -30,22 +31,30 @@
 (defn parse-expression
   "builds a clojure expression from a partial URI formatted as 'f/function1/param1/param2/.../f/function2/param1/param2/...'"
   [issues uri]
-  (let [allowed (vec (map str (conj (keys (ns-publics 'jira-scraper.core)) "count")))] 
-  (string/replace (str 
-    "("
-    (vec-string (reverse (map #(if (not (vec-contains? allowed %)) (throw (Exception. (str "Function not allowed: " %))) %) (vec (map first (rest (map #(string/split % #"/") (string/split uri #"/f/"))))))) " (")
-    " " issues " \""
-    (vec-string (vec (map #(vec-string (rest %) " ") (rest (map #(string/split % #"/") (string/split uri #"/f/"))))) "\") \"")
-    "\")"
-    ) #"\"\"" ""))
+  (if (or (empty? uri) (= uri "/"))
+    (str issues)
+    (let [allowed (vec (map str (conj (keys (ns-publics 'jira-scraper.core)) "count")))] 
+      (string/replace (str 
+                        "("
+                        (vec-string 
+                          (reverse 
+                            (map #(if (not (vec-contains? allowed %)) (throw (Exception. (str "Function not allowed: " %))) %) (vec (map first (rest (map #(string/split % #"/") (string/split uri #"/f/"))))))) " (")
+                        " " issues " \""
+                        (vec-string (vec (map #(vec-string (rest %) " ") (rest (map #(string/split % #"/") (string/split uri #"/f/"))))) "\") \"")
+                        "\")"
+                        ) 
+                      #"\"\"" ""))
+    )
   )
 
 (defroutes app-routes 
   (GET "/" [] "Welcome to the JIRA Analytics Web Application!")
-  (GET "/project/:project*" request (generate-string (binding [*ns* (find-ns 'jira-scraper.core)] 
-       (try (load-string
-          (parse-expression (str "(get-project \"" (-> request :params :project) "\" \"" username "\" \"" password "\")") (str (-> request :params :*))))
-        (catch Exception e (str "Something went wrong: " (.getMessage e)))))))
+  ;  (GET "/cache" [] (str cache))
+  (GET "/project/:project*" request (generate-string (binding [*ns* (find-ns 'jira-scraper.handler)] 
+                                                       (try (load-string
+                                                              (parse-expression (str "(fetch \"" (-> request :params :project) "\")") 
+                                                                                (str (-> request :params :*))))
+                                                            (catch Exception e (str "Something went wrong: " (.getMessage e)))))))
   (route/not-found "Not Found")
   )
 
