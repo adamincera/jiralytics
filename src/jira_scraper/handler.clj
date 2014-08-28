@@ -14,12 +14,28 @@
 
 (def password (:password (load-string (slurp "./credentials"))))
 
+(comment
+(defn clean
+  "removes expired elements from a cache"
+  [data]
+  (swap! data map #(if (not (has? data %)) (evict data %))))
+)
+
+(def cache (atom {}))
+
 (defn fetch 
   "now with cache!"
   [project]
-  ;(def cache (ttl-cache-factory 
-  (get-project project username password))
-;3600000)))
+  (if (and (= project (:project @cache)) (has? @cache (first (keys @cache))) (not (empty? @cache))) 
+      (vec (vals (dissoc @cache :project)))
+    (do
+;      (clean cache)
+      (def issues (get-project project username password))
+      (reset! cache (ttl-cache-factory 
+        (assoc (zipmap (id-list issues) issues) :project project) :ttl 3600000))
+      (vec (vals (dissoc @cache :project))))
+    )
+  )
 
 (defn vec-string
   "takes a vector and concatenates all its elements into a string"
@@ -49,9 +65,9 @@
 
 (defroutes app-routes 
   (GET "/" [] "Welcome to the JIRA Analytics Web Application!")
-  ;  (GET "/cache" [] (str cache))
-  (GET "/project/:project*" request (generate-string (binding [*ns* (find-ns 'jira-scraper.handler)] 
-                                                       (try (load-string
+  (GET "/cache" [] (str cache))
+  (GET "/project/:project*" request (generate-string 
+                                      (binding [*ns* (find-ns 'jira-scraper.handler)] (try (load-string
                                                               (parse-expression (str "(fetch \"" (-> request :params :project) "\")") 
                                                                                 (str (-> request :params :*))))
                                                             (catch Exception e (str "Something went wrong: " (.getMessage e)))))))
