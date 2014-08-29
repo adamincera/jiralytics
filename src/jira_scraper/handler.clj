@@ -14,13 +14,6 @@
 
 (def password (:password (load-string (slurp "./credentials"))))
 
-(comment
-(defn clean
-  "removes expired elements from a cache"
-  [data]
-  (swap! data map #(if (not (has? data %)) (evict data %))))
-)
-
 (def cache (atom {}))
 
 (defn fetch 
@@ -29,7 +22,6 @@
   (if (and (= project (:project @cache)) (has? @cache (first (keys @cache))) (not (empty? @cache))) 
       (vec (vals (dissoc @cache :project)))
     (do
-;      (clean cache)
       (def issues (get-project project username password))
       (reset! cache (ttl-cache-factory 
         (assoc (zipmap (id-list issues) issues) :project project) :ttl 3600000))
@@ -65,7 +57,7 @@
 
 (defroutes app-routes 
   (GET "/" [] "Welcome to the JIRA Analytics Web Application!")
-  (GET "/cache" [] (str cache))
+;  (GET "/cache/count" [] (generate-string (count @cache)))
   (GET "/project/:project*" request (generate-string 
                                       (binding [*ns* (find-ns 'jira-scraper.handler)] (try (load-string
                                                               (parse-expression (str "(fetch \"" (-> request :params :project) "\")") 

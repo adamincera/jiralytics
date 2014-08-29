@@ -267,8 +267,8 @@
 
 (defn created-on
   "finds all issues created on a certain date"
-  [issues data]
-  (filter #(same-day ((% :fields) :created)) issues)
+  [issues date]
+  (filter #(same-day ((% :fields) :created) date) issues)
   )
 
 (defn date?
