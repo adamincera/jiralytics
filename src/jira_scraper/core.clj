@@ -109,99 +109,97 @@
     )
   )
 
-  (defn second-elapse
-    "calls vec-elapse on the second element of a two-element vector"
-    [[x y]]
-    (vector x (vec-elapse y))
+(defn second-elapse
+  "calls vec-elapse on the second element of a two-element vector"
+  [[x y]]
+  (vector x (vec-elapse y))
+  )
+
+(defn elapsed-time
+  "creates a map of the form {'id' age} containing all issues that are passed to it"
+  [issues]
+  (into {} (map second-elapse (seq (map-dates issues))))
+  ) 
+
+
+(defn resolved?
+  "returns true if an issue has been resolved and false if it has not"
+  [issue]
+  (not (nil? (:resolutiondate (:fields issue))))
+  )
+
+(defn all-unresolved
+  "returns a mapping of all the unresolved issues"
+  [issues]
+  (filter #(not (resolved? %)) issues)
+  )
+
+(defn all-resolved
+  "returns a map of all the resolved issues"
+  [issues]
+  (filter #(resolved? %) issues))
+
+(defn assoc-resolved
+  "adds a param :resolved to a vector of issues"
+  [issues]
+  (map #(assoc % :resolved (resolved? %)) issues)
+  )
+
+(defn assoc-age
+  "associates a new param :age with each issue in the vector issues"
+  [issues]
+  (if (map? issues)
+    (assoc issues :age (vec-elapse [(-> issues :fields :created) (get (get issues :fields) :resolutiondate)]))
+    (map #(assoc % :age (vec-elapse [(-> % :fields :created) (-> % :fields :resolutiondate)])) issues)
     )
+  )
 
-  (defn elapsed-time
-    "creates a map of the form {'id' age} containing all issues that are passed to it"
-    [issues]
-    (into {} (map second-elapse (seq (map-dates issues))))
-    ) 
+(defn oldest
+  "finds age of oldest issue, resolved or unresolved"
+  [issues]
+  (apply max (vals (elapsed-time issues)))
+  )
 
+(defn count-age
+  "finds the number of issues of a given age"
+  [issues age]
+  (count (filter #(= age (% :age)) issues)))
 
-  (defn resolved?
-    "returns true if an issue has been resolved and false if it has not"
-    [issue]
-    (not (nil? (:resolutiondate (:fields issue))))
+(defn oldest-unresolved
+  "finds oldest unresolved issue"
+  [issues]
+  (if (= 1 (count (filter #(= (oldest (all-unresolved issues)) (:age %)) (assoc-age issues))))
+    (first (filter #(= (oldest (all-unresolved issues)) (:age %)) (assoc-age issues)))
+    (vec (filter #(= (oldest (all-unresolved issues)) (:age %)) (assoc-age issues)))
     )
+  )
 
-  (defn all-unresolved
-    "returns a mapping of all the unresolved issues"
-    [issues]
-    (filter #(not (resolved? %)) issues)
-    )
-
-  (defn all-resolved
-    "returns a map of all the resolved issues"
-    [issues]
-    (filter #(resolved? %) issues))
-
-  (defn assoc-resolved
-    "adds a param :resolved to a vector of issues"
-    [issues]
-    (map #(assoc % :resolved (resolved? %)) issues)
-    )
-
-  (defn assoc-age
-    "associates a new param :age with each issue in the vector issues"
-    [issues]
-    (if (map? issues)
-      (assoc issues :age (vec-elapse [(-> issues :fields :created) (get (get issues :fields) :resolutiondate)]))
-      (map #(assoc % :age (vec-elapse [(-> % :fields :created) (-> % :fields :resolutiondate)])) issues)
-      )
-    )
-
-  (defn oldest
-    "finds age of oldest issue, resolved or unresolved"
-    [issues]
-    (apply max (vals (elapsed-time issues)))
-    )
-
-  (defn count-age
-    "finds the number of issues of a given age"
-    [issues age]
-    (count (filter #(= age (% :age)) issues)))
-
-
-
-  (defn oldest-unresolved
-    "finds oldest unresolved issue"
-    [issues]
-    (if (= 1 (count (filter #(= (oldest (all-unresolved issues)) (:age %)) (assoc-age issues))))
-      (first (filter #(= (oldest (all-unresolved issues)) (:age %)) (assoc-age issues)))
-      (vec (filter #(= (oldest (all-unresolved issues)) (:age %)) (assoc-age issues)))
-      )
-    )
-
-  (defn recursive-map
-    "recursively search through successive levels of a map of maps"
-    ; case called by user
-    ([issues params]
-     (if (= 1 (count params))
-       (issues (first params))
-       (recursive-map issues (first params) (vec (rest params)))
+(defn recursive-map
+  "recursively search through successive levels of a map of maps given a vector of keys"
+  ; case called by user
+  ([issues params]
+   (if (= 1 (count params))
+     (issues (first params))
+     (recursive-map issues (first params) (vec (rest params)))
+     )
+   )
+  ; recursive case
+  ([issues param1 params]
+   (if (nil? issues) 
+     (str "empty")
+     (if (empty? params)
+       (issues param1)
+       (recur (get issues param1) (first params) (vec (rest params)))
        )
      )
-    ; recursive case
-    ([issues param1 params]
-     (if (nil? issues) 
-       (str "empty")
-       (if (empty? params)
-         (issues param1)
-         (recur (get issues param1) (first params) (vec (rest params)))
-         )
-       )
-     )
-    )
+   )
+  )
 
-  (defn unresolved-hist
-    "creates a histogram displaying the ages of unresolved tickets"
-    [issues]
-    (incanter/view (charts/histogram (map in-days (vals (elapsed-time (all-unresolved issues))))))
-    )
+(defn unresolved-hist
+  "creates a histogram displaying the ages of unresolved tickets"
+  [issues]
+  (incanter/view (charts/histogram (map in-days (vals (elapsed-time (all-unresolved issues))))))
+  )
 
 (defn resolved-hist
   "creates a histogram displaying the ages of resolved tickets"
@@ -219,16 +217,6 @@
   "finds average age of issues in a set"
   [issues]
   (stats/mean (vals (elapsed-time issues))))
-
-(defn avg-resolved
-  "finds average resolution time for a set of issues"
-  [issues]
-  (int (stats/mean (vals (elapsed-time (all-resolved issues))))))
-
-(defn avg-unresolved
-  "finds average age of unresolved issues in a set"
-  [issues]
-  (int (stats/mean (vals (elapsed-time (all-unresolved issues))))))
 
 (defn gen-filter
   "filters results according to one parameter. params is a vector containing the 'path' to the parameter in question"
@@ -265,12 +253,6 @@
   (and (= (t/year day1) (t/year day2)) (= (t/month day1) (t/month day2)) (= (t/day day1) (t/day day2)))
   )
 
-(defn created-on
-  "finds all issues created on a certain date"
-  [issues date]
-  (filter #(same-day ((% :fields) :created) date) issues)
-  )
-
 (defn date?
   "determines whether a string is a properly formatted date of the form yyyy-mm-dd"
   [s]
@@ -301,7 +283,7 @@
          ))
   )
 
-(defn as-old
+(defn created-on 
   "finds all issues of a given age, created on a certain day, or on the same day as another issue"
   [issues cutoff]
   (vec (if (map? cutoff)
@@ -316,13 +298,13 @@
 (defn older-than-or-equal
   ""
   [issues cutoff]
-  (vec (distinct (concat (older-than issues cutoff) (as-old issues cutoff))))
+  (vec (distinct (concat (older-than issues cutoff) (created-on issues cutoff))))
   )
 
 (defn younger-than-or-equal
   ""
   [issues cutoff]
-  (vec (distinct (concat (younger-than issues cutoff) (as-old issues cutoff))))
+  (vec (distinct (concat (younger-than issues cutoff) (created-on issues cutoff))))
   )
 
 (defn priority
@@ -342,4 +324,3 @@
   [issues user]
   (gen-filter issues user (if (= "unassigned" user) [:fields :assignee] [:fields :assignee :name]))
   )
-
