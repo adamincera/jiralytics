@@ -1,4 +1,4 @@
-# jira-scraper
+# jiralytics
 
 A Clojure library designed to fetch and interpret data from the JIRA REST API.
 
