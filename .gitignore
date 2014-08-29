@@ -11,3 +11,4 @@ Makefile
 *.swp
 /.lein-*
 /.nrepl-port
+credentials*
