@@ -1,4 +1,4 @@
-(ns jira-scraper.core
+(ns jiralytics.core
   (:require [clojure.set :as c-set]
             [clj-http.client :as client]
             [clj-time.core :as t]

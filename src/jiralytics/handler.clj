@@ -1,10 +1,10 @@
-(ns jira-scraper.handler
+(ns jiralytics.handler
   (:require [compojure.core :refer :all]
             [compojure.handler :as handler]
             [compojure.route :as route]
             [clojure.string :as string]
             [cheshire.core :refer :all]
-            [jira-scraper.core :refer :all]
+            [jiralytics.core :refer :all]
             [clojure.core.cache :refer :all]
             ))
 
@@ -41,7 +41,7 @@
   [issues uri]
   (if (or (empty? uri) (= uri "/"))
     (str issues)
-    (let [allowed (vec (map str (conj (keys (ns-publics 'jira-scraper.core)) "count")))] 
+    (let [allowed (vec (map str (conj (keys (ns-publics 'jiralytics.core)) "count")))] 
       (string/replace (str 
                         "("
                         (vec-string 
@@ -59,7 +59,7 @@
   (GET "/" [] "Welcome to the JIRA Analytics Web Application!")
 ;  (GET "/cache/count" [] (generate-string (count @cache)))
   (GET "/project/:project*" request (generate-string 
-                                      (binding [*ns* (find-ns 'jira-scraper.handler)] (try (load-string
+                                      (binding [*ns* (find-ns 'jiralytics.handler)] (try (load-string
                                                               (parse-expression (str "(fetch \"" (-> request :params :project) "\")") 
                                                                                 (str (-> request :params :*))))
                                                             (catch Exception e (str "Something went wrong: " (.getMessage e)))))))
